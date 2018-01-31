@@ -223,7 +223,7 @@ struct twiddler{
   twiddler() {
     double b0,b1,b2,d0,d1,d2;
     {
-      ifstream fin("/home/sunil/carnd/CarND-PID-Control-Project/checkpoint");
+      ifstream fin("/usr/local/google/home/sunilsn/carnd/t2/CarND-PID-Control-Project/checkpoint");
       if(fin)
 	fin>>N>>b0>>b1>>b2>>d0>>d1>>d2;
       else {
@@ -269,7 +269,7 @@ struct twiddler{
 	bestCteAvg = fabs(curCteAvg);
 	changedN = false;
       }
-      if(fabs(curCteAvg)<fabs(bestCteAvg)) {
+      if(fabs(pid.TotalError())<=1 && fabs(curCteAvg)<fabs(bestCteAvg)) {
 	bestCteAvg = curCteAvg;
 	bestP = curP;
 	dp[paramId]*=(1.0+twiddle_rate);
@@ -287,9 +287,9 @@ struct twiddler{
 	      cout<<"best params found "<<endl;
 	      return false;
 	    } else {
-	      dp[0]*=3;
-	      dp[1]*=3;
-	      dp[2]*=3;
+	      dp[0]*=100;
+	      dp[1]*=100;
+	      dp[2]*=100;
 	      N*=r;
 	      curtol*=0.01;
 	      changedN = true;
@@ -316,9 +316,9 @@ struct twiddler{
 		cout<<"best params found "<<endl;
 		return false;
 	      } else {
-		dp[0]*=3;
-		dp[1]*=3;
-		dp[2]*=3;
+		dp[0]*=100;
+		dp[1]*=100;
+		dp[2]*=100;
 		N*=r;
 		curtol*=0.01;
 		changedN = true;
@@ -336,7 +336,7 @@ struct twiddler{
     cout<<"N : "<<N<<" berror : "<<bestCteAvg<<" bP : "<<bestP[0]<<" "<<bestP[1]<<" "<<bestP[2]
 	<<" ce : "<< curCteAvg<<" cP : "<<curP[0]<<" "<<curP[1]<<" "<<curP[2]<<" dp : "<<dp[0]<<" "<<dp[1]<<" "<<dp[2]<<endl;
     {
-      ofstream fout("/home/sunil/carnd/CarND-PID-Control-Project/checkpoint");
+      ofstream fout("/usr/local/google/home/sunilsn/carnd/t2/CarND-PID-Control-Project/checkpoint");
       fout<<N<<" "<<bestP[0]<<" "<<bestP[1]<<" "<<bestP[2]<<" "<<dp[0]<<" "<<dp[1]<<" "<<dp[2]<<endl;
     }
     return true;
@@ -368,13 +368,15 @@ int main() {
   //0.573839 -2.1 0
   uWS::Hub h;
   PID pid;
-  int N,stepid=0;
   twiddler t;
-  t(N,pid);
+  t(pid);
+  ofstream fout("/usr/local/google/home/sunilsn/carnd/t2/CarND-PID-Control-Project/cte");
+  fout<<"cte,speed,angle,cte_min,steer_value,cte_max,fabs_cte_avg,pid.p_error,pid.i_error,pid.d_error,pid.Kp,pid.Ki,pid.Kd,total_error"<<endl;
   //  pid.Init(0.573839,-2.1,0);
   double tol=1e-9;
   bool first = true;
-  h.onMessage([&pid,&stepid,&t,&N,&first](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+  h.onMessage([&pid,&stepid,&t,&N,&first,&fout](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+      static double cte_min,cte_max,fabs_cte_avg;
       if(first) {
 	first = false;
 	std::string msg = "42[\"reset\",{}]";
@@ -391,19 +393,32 @@ int main() {
 	    double cte = std::stod(j[1]["cte"].get<std::string>());
 	    double speed = std::stod(j[1]["speed"].get<std::string>());
 	    double angle = std::stod(j[1]["steering_angle"].get<std::string>());
+            if(cte<cte_min) cte_min=cte;
+            if(cte>cte_max) cte_max=cte;
+            fabs_cte_avg = pid.AvgError();
+            //cout<<j[1]<<endl;
 	    //std::cout<<" cte : "<<cte<<" speed : "<<speed<<" angle : "<<angle<<std::endl;
 	    pid.UpdateError(cte);
-	    if(stepid==N || (pid.error/N) > t.bestCteAvg) {
-	      if(t(N,pid)) {
-		stepid=0;
-		//cout<<"restarting the simulator..."<<endl;
+            double total_error = pid.TotalError();
+            double steer_value = total_error;
+	    if(fabs(steer_value)>1) {
+	      if(t(pid)) {
+                //cout<<"restarting the simulator..."<<endl;
 		//std::string msg = "42[\"restart\",{}]";
 		std::string msg = "42[\"reset\",{}]";
 		ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
+                cte_min=1e99;
+                cte_max=-1e99;
+                fabs_cte_avg=0;
+                fout<<"0,0,0,0,0,"
+                    <<"0,0,0,0,"
+                    <<"0,0,0,0,0"<<endl;
+                fout.flush();
 	      }
 	    } else {
-	      double steer_value;
-	      steer_value = tanh(pid.TotalError());
+              fout<<cte<<","<<speed<<","<<angle<<","<<cte_min<<","<<steer_value<<","
+                  <<cte_max<<","<<fabs_cte_avg<<","<<pid.p_error<<","<<pid.i_error<<","
+                  <<pid.d_error<<","<<pid.Kp<<","<<pid.Ki<<","<<pid.Kd<<","<<total_error<<endl;
 	      //std::cout <<"sending Steering Value: " << steer_value << std::endl;
 	      json msgJson;
 	      msgJson["steering_angle"] = steer_value;

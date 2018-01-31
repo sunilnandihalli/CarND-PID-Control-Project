@@ -1,3 +1,3 @@
 #!/bin/bash -v
-cd /home/sunil/Downloads/term2_sim_linux
+cd /usr/local/google/home/sunilsn/carnd/t2/term2_sim_linux
 ./term2_sim.x86_64
