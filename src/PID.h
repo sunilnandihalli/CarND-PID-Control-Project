@@ -12,6 +12,7 @@ public:
   // Update the PID error variables given cross track error.
   void UpdateError(double cte);
   double TotalError(); // Calculate the total PID error.
+  double AvgError();
 };
 
 #endif /* PID_H */

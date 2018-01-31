@@ -23,7 +23,7 @@ void PID::UpdateError(double cte) {
   p_error = cte;
   steps++;
 }
-void PID::AvgError() {
+double PID::AvgError() {
   if(steps==0)
     return 9e99;
   return error/steps;
