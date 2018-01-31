@@ -3,7 +3,7 @@
 
 class PID {
 public:
-
+  int steps;
   double p_error,i_error,d_error,error;   // Errors
   double Kp,Ki,Kd;   // Coefficients
   PID();
