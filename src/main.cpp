@@ -5,9 +5,6 @@
 #include <math.h>
 #include <vector>
 #include <fstream>
-#define HAVE_CSTDDEF
-#include "Eigen-3.3/Eigen/Core"
-#include "Eigen-3.3/Eigen/QR"
 using namespace std;
 // for convenience
 using json = nlohmann::json;
