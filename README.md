@@ -1,3 +1,11 @@
+# Goal
+ Build PID controler for the car
+ 
+# Describe PID controller
+ * Proportional (P) controller : tries to steer the car to correct for the cross-track-error. This is the most obvious thing to do.
+ * Derivative (D) controller : This tries to make the car smoothly reaching the zero-cross-track-error without overshooting it. This will help reduce the oscilator motion
+  * 
+
 # CarND-Controls-PID
 Self-Driving Car Engineer Nanodegree Program
 
