@@ -47,5 +47,6 @@ double PID::AvgError() {
 void PID::GetControls(double& steering,double& throttle) {
   steering= Kp_s*p_error_s+Ki_s*i_error_s+Kd_s*d_error_s;
   throttle= 0.2+Kp_t*p_error_t+Kd_t*d_error_t;
-  throttle=0.1;
+  if(throttle<0.1) throttle = 0.1;
+  //  throttle=0.2;
 }

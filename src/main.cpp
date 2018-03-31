@@ -49,7 +49,7 @@ struct twiddler{
       b0=b1=b2=b3=b4=0.0;
       //b0 = -0.134611, b1= -0.000270736, b2=-3.05349;
       //      b0 = -0.154719,b1 = -0.000198047, b2 = -3.86494;
-      b0 = -0.154719,b1=-0.000198047,b2=-3.86494,b3=0.316731,b4=0.0226185;
+      b0 = -0.154719,b1=-0.000198047,b2=-3.86494,b3=-0.316731,b4=-0.0226185;
       d0=d1=d2=d3=d4=0.0;
       d0 = fabs(b0*0.1);
       d1 = fabs(b1*0.1);
@@ -83,7 +83,7 @@ struct twiddler{
         bestN = pid.steps;
 	dp[paramId]*=(1.0+twiddle_rate);
 	paramId++;
-	if(paramId==3) {
+	if(paramId==5) {
 	  iter++;
 	  if(dp[0]+dp[1]+dp[2]+dp[3]+dp[4]<curtol) {
 	    if(bestN>=Nmax) {
@@ -103,7 +103,7 @@ struct twiddler{
 	  curP[paramId]+=dp[paramId];
 	  dp[paramId]*=(1.0-twiddle_rate);
 	  paramId++;
-	  if(paramId==3) {
+	  if(paramId==5) {
 	    iter++;
 	    if(dp[0]+dp[1]+dp[2]+dp[3]+dp[4]<curtol) {
 	      if(bestN>=Nmax) {
@@ -128,8 +128,9 @@ int main() {
   PID pid;
   twiddler t;
   t(pid);
+  bool twiddle_mode = false;
   bool first = true;
-  h.onMessage([&pid,&t,&first](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+  h.onMessage([&pid,&t,&first,&twiddle_mode](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
       static double cte_min,cte_max,fabs_cte_avg;
       if(first) {
 	first = false;
@@ -152,7 +153,7 @@ int main() {
 	    pid.UpdateError(cte);
             double steer_value,throttle_value;
             pid.GetControls(steer_value,throttle_value);
-	    if(pid.steps>500 || cte>99999999 || fabs(steer_value)>999999) {
+	    if(twiddle_mode && (pid.steps>500 || cte>3 || fabs(steer_value)>1)) {
               cout<<"current bestParams ";
               for(auto x:t.bestP)
                 cout<<x<<" ";
