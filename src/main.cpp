@@ -46,18 +46,22 @@ struct twiddler{
   double curtol;
   enum {POS,NEG} curTry;
   twiddler() {
-    double b0,b1,b2,d0,d1,d2;
+    double b0,b1,b2,b3,b4,d0,d1,d2,d3,d4;
     {
-      ifstream fin("/usr/local/google/home/sunilsn/carnd/t2/CarND-PID-Control-Project/checkpoint");
-      if(fin)
-	fin>>bestN>>b0>>b1>>b2>>d0>>d1>>d2;
-      else {
-	b0=b1=b2=0.0;
-	d0=d1=d2=1.0;
-      }
+      
+      b0=b1=b2=b3=b4=0.0;
+      //b0 = -0.134611, b1= -0.000270736, b2=-3.05349;
+      //      b0 = -0.154719,b1 = -0.000198047, b2 = -3.86494;
+      b0 = -0.154719,b1=-0.000198047,b2=-3.86494,b3=0.316731,b4=0.0226185;
+      d0=d1=d2=d3=d4=0.0;
+      d0 = fabs(b0*0.1);
+      d1 = fabs(b1*0.1);
+      d2 = fabs(b2*0.1);
+      d3 = fabs(b3*0.1);
+      d4 = fabs(b4*0.1);
     }
-    bestP={b0,b1,b2};
-    dp={d0,d1,d2};
+    bestP={b0,b1,b2,b3,b4};
+    dp={d0,d1,d2,d3,d4};
     curP=bestP;
     twiddle_rate = 0.1;
     bestCteAvg = 1e99;
@@ -71,7 +75,6 @@ struct twiddler{
     Nmax = 10000;
   }
   bool operator()(PID& pid) {
-    //cout<<" iter : "<<iter<<" N : "<<N<<" paramId : "<<paramId<<" curTry : "<<(curTry==POS?"POS":"NEG")<<endl;
     double curCteAvg = pid.AvgError();
     if(firstTime) {
       firstTime = false;
@@ -82,16 +85,10 @@ struct twiddler{
 	bestP = curP;
         bestN = pid.steps;
 	dp[paramId]*=(1.0+twiddle_rate);
-	cout<<"curP : "<<curP[0]<<" "<<curP[1]<<" "<<curP[2]
-	    <<" cur_error : "<<curCteAvg
-	    <<" bestN : "<<bestN
-	    <<" dp : "<<dp[0]<<" "<<dp[1]<<" "<<dp[2]<<endl;
 	paramId++;
 	if(paramId==3) {
 	  iter++;
-	  cout<<"iteration : "<<iter<<" best_error : "<<bestCteAvg<<" params : "<<bestP[0]<<" "<<bestP[1]<<" "<<bestP[2]<<endl;
-	  cout<<" dp : "<<dp[0]<<" "<<dp[1]<<" "<<dp[2]<<endl;
-	  if(dp[0]+dp[1]+dp[2]<curtol) {
+	  if(dp[0]+dp[1]+dp[2]+dp[3]+dp[4]<curtol) {
 	    if(bestN>=Nmax) {
 	      cout<<"best params found "<<endl;
 	      return false;
@@ -111,7 +108,7 @@ struct twiddler{
 	  paramId++;
 	  if(paramId==3) {
 	    iter++;
-	    if(dp[0]+dp[1]+dp[2]<curtol) {
+	    if(dp[0]+dp[1]+dp[2]+dp[3]+dp[4]<curtol) {
 	      if(bestN>=Nmax) {
 		cout<<"best params found "<<endl;
 		return false;
@@ -124,30 +121,18 @@ struct twiddler{
 	}
       }
     }
-    pid.Init(curP[0],curP[1],curP[2]);
-    cout<<"bestN : "<<bestN<<" berror : "<<bestCteAvg<<" bP : "<<bestP[0]<<" "<<bestP[1]<<" "<<bestP[2]
-	<<" ce : "<< curCteAvg<<" cP : "<<curP[0]<<" "<<curP[1]<<" "<<curP[2]<<" dp : "<<dp[0]<<" "<<dp[1]<<" "<<dp[2]<<endl;
-    {
-      ofstream fout("/usr/local/google/home/sunilsn/carnd/t2/CarND-PID-Control-Project/checkpoint");
-      fout<<bestN<<" "<<bestP[0]<<" "<<bestP[1]<<" "<<bestP[2]<<" "<<dp[0]<<" "<<dp[1]<<" "<<dp[2]<<endl;
-    }
+    pid.Init(curP[0],curP[1],curP[2],curP[3],curP[4]);
     return true;
   }
 };
 
 int main() {
-  //testrun();
-  //return 0;
-  //0.573839 -2.1 0
   uWS::Hub h;
   PID pid;
   twiddler t;
   t(pid);
-  ofstream fout("/usr/local/google/home/sunilsn/carnd/t2/CarND-PID-Control-Project/cte");
-  fout<<"cte,speed,angle,cte_min,steer_value,cte_max,fabs_cte_avg,pid.p_error,pid.i_error,pid.d_error,pid.Kp,pid.Ki,pid.Kd,total_error"<<endl;
-  //  pid.Init(0.573839,-2.1,0);
   bool first = true;
-  h.onMessage([&pid,&t,&first,&fout](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
+  h.onMessage([&pid,&t,&first](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length, uWS::OpCode opCode) {
       static double cte_min,cte_max,fabs_cte_avg;
       if(first) {
 	first = false;
@@ -167,40 +152,30 @@ int main() {
             if(cte<cte_min) cte_min=cte;
             if(cte>cte_max) cte_max=cte;
             fabs_cte_avg = pid.AvgError();
-            //cout<<j[1]<<endl;
-	    //std::cout<<" cte : "<<cte<<" speed : "<<speed<<" angle : "<<angle<<std::endl;
 	    pid.UpdateError(cte);
-            double total_error = pid.TotalError();
-            double steer_value = total_error;
-	    if(cte>2 || fabs(steer_value)>1) {
+            double steer_value,throttle_value;
+            pid.GetControls(steer_value,throttle_value);
+	    if(pid.steps>500 || cte>99999999 || fabs(steer_value)>999999) {
+              cout<<"current bestParams ";
+              for(auto x:t.bestP)
+                cout<<x<<" ";
+              cout<<endl;
 	      if(t(pid)) {
-                //cout<<"restarting the simulator..."<<endl;
-		//std::string msg = "42[\"restart\",{}]";
 		std::string msg = "42[\"reset\",{}]";
 		ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
                 cte_min=1e99;
                 cte_max=-1e99;
                 fabs_cte_avg=0;
-                fout<<"0,0,0,0,0,"
-                    <<"0,0,0,0,"
-                    <<"0,0,0,0,0"<<endl;
-                fout.flush();
 	      }
 	    } else {
-              fout<<cte<<","<<speed<<","<<angle<<","<<cte_min<<","<<steer_value<<","
-                  <<cte_max<<","<<fabs_cte_avg<<","<<pid.p_error<<","<<pid.i_error<<","
-                  <<pid.d_error<<","<<pid.Kp<<","<<pid.Ki<<","<<pid.Kd<<","<<total_error<<endl;
-	      //std::cout <<"sending Steering Value: " << steer_value << std::endl;
 	      json msgJson;
 	      msgJson["steering_angle"] = steer_value;
-	      msgJson["throttle"] = 3;
+	      msgJson["throttle"] = throttle_value;
 	      auto msg = "42[\"steer\"," + msgJson.dump() + "]";
-	      //std::cout << msg << std::endl;
 	      ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
 	    }
 	  }
 	} else {
-	  // Manual driving
 	  std::string msg = "42[\"manual\",{}]";
 	  ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
 	}
